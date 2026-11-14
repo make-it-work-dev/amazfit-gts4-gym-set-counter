@@ -9,6 +9,7 @@ import {
   setDefaultRest,
   isValidPersistedWorkoutState,
   restoreWorkoutState,
+  createReminderPulsePlan,
   resetWorkout,
   formatSeconds,
 } from '../shared/workout-state.js'
@@ -120,6 +121,10 @@ test('recovers safely from corrupt persisted workout data', () => {
     }, 1_000),
     createWorkoutState(),
   )
+})
+
+test('rest reminder is bounded to five one-second pulses', () => {
+  assert.deepEqual(createReminderPulsePlan(), [0, 1000, 2000, 3000, 4000])
 })
 
 test('reset restores defaults', () => {

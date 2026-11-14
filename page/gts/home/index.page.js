@@ -2,10 +2,18 @@ import { createWidget, widget, prop } from '@zos/ui'
 import {
   Vibrator,
   VIBRATOR_SCENE_SHORT_STRONG,
-  VIBRATOR_SCENE_STRONG_REMINDER,
+  VIBRATOR_SCENE_DURATION,
 } from '@zos/sensor'
 import { localStorage } from '@zos/storage'
-import { setPageBrightTime, resetPageBrightTime, setWakeUpRelaunch } from '@zos/display'
+import {
+  setPageBrightTime,
+  resetPageBrightTime,
+  setWakeUpRelaunch,
+  pauseDropWristScreenOff,
+  resetDropWristScreenOff,
+  pausePalmScreenOff,
+  resetPalmScreenOff,
+} from '@zos/display'
 import { setLaunchAppTimeout, clearLaunchAppTimeout } from '@zos/router'
 import { getPackageInfo } from '@zos/app'
 
@@ -16,6 +24,7 @@ import {
   setDefaultRest,
   isValidPersistedWorkoutState,
   restoreWorkoutState,
+  createReminderPulsePlan,
   resetWorkout,
   formatSeconds,
 } from '../../../shared/workout-state'
@@ -29,7 +38,6 @@ import {
   RESET_BUTTON,
   SETTINGS_BUTTON,
   SETTINGS_TITLE,
-  SETTINGS_LABEL,
   SETTINGS_VALUE,
   SETTINGS_MINUS,
   SETTINGS_PLUS,
@@ -48,6 +56,8 @@ Page({
   state: {
     workout: createWorkoutState(),
     intervalId: null,
+    reminderIntervalId: null,
+    reminderStopTimeoutId: null,
     settingsOpen: false,
     alertOnBuild: false,
     ui: {},
@@ -66,6 +76,8 @@ Page({
 
   build() {
     setPageBrightTime({ brightTime: KEEP_SCREEN_ON_MS })
+    pauseDropWristScreenOff({ duration: 0 })
+    pausePalmScreenOff({ duration: 0 })
 
     this.state.ui.background = createWidget(widget.FILL_RECT, {
       x: 0,
@@ -93,7 +105,6 @@ Page({
     })
 
     this.state.ui.settingsTitle = createWidget(widget.TEXT, SETTINGS_TITLE)
-    this.state.ui.settingsLabel = createWidget(widget.TEXT, SETTINGS_LABEL)
     this.state.ui.settingsValue = createWidget(widget.TEXT, SETTINGS_VALUE)
     this.state.ui.settingsMinus = createWidget(widget.BUTTON, {
       ...SETTINGS_MINUS,
@@ -110,7 +121,7 @@ Page({
 
     this.render()
     if (this.state.alertOnBuild) {
-      vibrator.start({ mode: VIBRATOR_SCENE_STRONG_REMINDER })
+      this.startRestReminder()
       this.state.alertOnBuild = false
     }
     this.state.intervalId = setInterval(() => this.onSecond(), 1000)
@@ -127,7 +138,7 @@ Page({
     this.state.workout = next
     this.saveWorkout()
     if (previous.phase === 'rest' && next.phase === 'ready') {
-      vibrator.start({ mode: VIBRATOR_SCENE_STRONG_REMINDER })
+      this.startRestReminder()
     }
     this.render()
   },
@@ -136,6 +147,7 @@ Page({
     const current = syncRest(this.state.workout, Date.now())
     if (current.phase === 'rest' || current.phase === 'complete') return
 
+    this.stopRestReminder()
     this.state.workout = completeSet(current, Date.now())
     this.saveWorkout()
     vibrator.start({ mode: VIBRATOR_SCENE_SHORT_STRONG })
@@ -143,6 +155,7 @@ Page({
   },
 
   reset() {
+    this.stopRestReminder()
     this.state.workout = resetWorkout(this.state.workout)
     this.saveWorkout()
     this.render()
@@ -166,6 +179,45 @@ Page({
     )
     this.saveWorkout()
     this.render()
+  },
+
+  startRestReminder() {
+    this.stopRestReminder()
+    const pulsePlan = createReminderPulsePlan()
+    let pulseIndex = 0
+
+    const pulse = () => {
+      vibrator.start({ mode: VIBRATOR_SCENE_DURATION })
+      pulseIndex += 1
+
+      if (pulseIndex >= pulsePlan.length) {
+        if (this.state.reminderIntervalId !== null) {
+          clearInterval(this.state.reminderIntervalId)
+          this.state.reminderIntervalId = null
+        }
+        this.state.reminderStopTimeoutId = setTimeout(() => {
+          vibrator.stop()
+          this.state.reminderStopTimeoutId = null
+        }, 700)
+      }
+    }
+
+    pulse()
+    if (pulsePlan.length > 1) {
+      this.state.reminderIntervalId = setInterval(pulse, 1000)
+    }
+  },
+
+  stopRestReminder() {
+    if (this.state.reminderIntervalId !== null) {
+      clearInterval(this.state.reminderIntervalId)
+      this.state.reminderIntervalId = null
+    }
+    if (this.state.reminderStopTimeoutId !== null) {
+      clearTimeout(this.state.reminderStopTimeoutId)
+      this.state.reminderStopTimeoutId = null
+    }
+    vibrator.stop()
   },
 
   saveWorkout() {
@@ -252,7 +304,6 @@ Page({
     this.setVisible(this.state.ui.done, showMain && !isResting && !isComplete)
 
     this.setVisible(this.state.ui.settingsTitle, this.state.settingsOpen)
-    this.setVisible(this.state.ui.settingsLabel, this.state.settingsOpen)
     this.setVisible(this.state.ui.settingsValue, this.state.settingsOpen)
     this.setVisible(this.state.ui.settingsMinus, this.state.settingsOpen)
     this.setVisible(this.state.ui.settingsPlus, this.state.settingsOpen)
@@ -261,9 +312,12 @@ Page({
 
   onDestroy() {
     if (this.state.intervalId !== null) clearInterval(this.state.intervalId)
+    this.stopRestReminder()
     this.state.workout = syncRest(this.state.workout, Date.now())
     this.saveWorkout()
     this.scheduleRestAlarm()
+    resetDropWristScreenOff()
+    resetPalmScreenOff()
     resetPageBrightTime()
   },
 })

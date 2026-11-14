@@ -126,6 +126,11 @@ export function restoreWorkoutState(saved, nowMs = Date.now()) {
   }
 }
 
+export function createReminderPulsePlan(seconds = 5) {
+  const pulseCount = Math.max(1, Math.floor(seconds))
+  return Array.from({ length: pulseCount }, (_, index) => index * 1000)
+}
+
 export function resetWorkout(state) {
   return createWorkoutState({
     targetSets: state.targetSets,

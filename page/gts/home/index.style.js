@@ -110,20 +110,9 @@ export const SETTINGS_TITLE = {
   ...CENTERED,
 }
 
-export const SETTINGS_LABEL = {
-  x: 24,
-  y: 100,
-  w: 342,
-  h: 40,
-  text: 'DEFAULT REST TIME',
-  color: COLORS.muted,
-  text_size: 21,
-  ...CENTERED,
-}
-
 export const SETTINGS_VALUE = {
   x: 24,
-  y: 145,
+  y: 112,
   w: 342,
   h: 82,
   text: '01:00',
@@ -134,7 +123,7 @@ export const SETTINGS_VALUE = {
 
 export const SETTINGS_MINUS = {
   x: 40,
-  y: 248,
+  y: 225,
   w: 140,
   h: 62,
   text: '-15 SEC',
@@ -147,7 +136,7 @@ export const SETTINGS_MINUS = {
 
 export const SETTINGS_PLUS = {
   x: 210,
-  y: 248,
+  y: 225,
   w: 140,
   h: 62,
   text: '+15 SEC',
