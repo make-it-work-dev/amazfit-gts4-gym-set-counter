@@ -5,14 +5,14 @@
     "appName": "Gym Sets",
     "appType": "app",
     "version": {
-      "code": 1,
-      "name": "1.0.0"
+      "code": 2,
+      "name": "1.1.0"
     },
     "icon": "icon.png",
     "vender": "LMAO",
     "description": "Simple four-set gym counter with a rest timer"
   },
-  "permissions": [],
+  "permissions": ["device:os.local_storage"],
   "runtime": {
     "apiVersion": {
       "compatible": "2.0",
