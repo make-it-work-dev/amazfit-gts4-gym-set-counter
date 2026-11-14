@@ -1,0 +1,13 @@
+{
+  "name": "amazfit-gts4-gym-set-counter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "build": "zeus build"
+  },
+  "devDependencies": {
+    "@zeppos/zeus-cli": "1.10.0"
+  }
+}

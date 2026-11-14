@@ -1,0 +1,50 @@
+{
+  "configVersion": "v2",
+  "app": {
+    "appId": 2889041,
+    "appName": "Gym Sets",
+    "appType": "app",
+    "version": {
+      "code": 1,
+      "name": "1.0.0"
+    },
+    "icon": "icon.png",
+    "vender": "LMAO",
+    "description": "Simple four-set gym counter with a rest timer"
+  },
+  "permissions": [],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "2.0",
+      "target": "2.0",
+      "minVersion": "2.0"
+    }
+  },
+  "debug": false,
+  "targets": {
+    "gts": {
+      "module": {
+        "page": {
+          "pages": ["page/gts/home/index.page"]
+        }
+      },
+      "platforms": [
+        {
+          "name": "gts4",
+          "deviceSource": 7995648
+        },
+        {
+          "name": "gts4-w",
+          "deviceSource": 7995649
+        }
+      ],
+      "designWidth": 390
+    }
+  },
+  "i18n": {
+    "en-US": {
+      "appName": "Gym Sets"
+    }
+  },
+  "defaultLanguage": "en-US"
+}
