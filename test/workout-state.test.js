@@ -9,8 +9,13 @@ import {
   setDefaultRest,
   isValidPersistedWorkoutState,
   restoreWorkoutState,
+  restorePendingCompletionAt,
   createReminderPulsePlan,
+  BODY_PARTS,
   addWorkoutHistory,
+  removeWorkoutHistory,
+  shiftHistoryDate,
+  paginateWorkoutHistory,
   restoreWorkoutHistory,
   createMusicLaunchRequest,
   resetWorkout,
@@ -126,41 +131,119 @@ test('recovers safely from corrupt persisted workout data', () => {
   )
 })
 
+test('pending completion dates fail closed when missing, malformed, or future-dated', () => {
+  assert.equal(restorePendingCompletionAt(5_000, 10_000), 5_000)
+  assert.equal(restorePendingCompletionAt(null, 10_000), null)
+  assert.equal(restorePendingCompletionAt('5_000', 10_000), null)
+  assert.equal(restorePendingCompletionAt(-1, 10_000), null)
+  assert.equal(restorePendingCompletionAt(20_000, 10_000), null)
+})
+
 test('strong rest reminder repeats for two seconds then stops', () => {
   assert.deepEqual(createReminderPulsePlan(), [0, 1000])
 })
 
-test('completed workouts are stored newest first and history is capped at twenty', () => {
+test('completed workouts store the selected body part newest first and cap history at twenty', () => {
+  assert.deepEqual(BODY_PARTS, [
+    'CHEST',
+    'BICEPS',
+    'TRICEPS',
+    'SHOULDERS',
+    'LEGS',
+    'BACK',
+    'OTHER',
+  ])
+
   let history = []
   for (let index = 0; index < 22; index += 1) {
     history = addWorkoutHistory(history, createWorkoutState({
       targetSets: 4,
       restSeconds: 60 + index,
-    }), 1_000 + index)
+    }), 'CHEST', 1_000 + index)
   }
 
   assert.equal(history.length, 20)
   assert.deepEqual(history[0], {
     completedAt: 1_021,
+    bodyPart: 'CHEST',
     sets: 4,
     restSeconds: 81,
   })
   assert.equal(history[19].completedAt, 1_002)
 })
 
-test('invalid history entries are discarded, deduplicated, and sorted newest first', () => {
+test('adding a past workout keeps history newest first before applying the cap', () => {
+  const workout = createWorkoutState()
+  const existing = Array.from({ length: 20 }, (_, index) => ({
+    completedAt: 20_000 - index * 1_000,
+    bodyPart: 'BACK',
+    sets: 4,
+    restSeconds: 60,
+  }))
+
+  const history = addWorkoutHistory(existing, workout, 'LEGS', 15_500)
+  assert.equal(history.length, 20)
+  assert.deepEqual(history.map((entry) => entry.completedAt), [
+    20_000, 19_000, 18_000, 17_000, 16_000, 15_500, 15_000, 14_000, 13_000,
+    12_000, 11_000, 10_000, 9_000, 8_000, 7_000, 6_000, 5_000, 4_000, 3_000,
+    2_000,
+  ])
+})
+
+test('history events can be removed by their completion timestamp', () => {
+  const history = [
+    { completedAt: 3_000, bodyPart: 'CHEST', sets: 4, restSeconds: 60 },
+    { completedAt: 2_000, bodyPart: 'BACK', sets: 4, restSeconds: 60 },
+  ]
+
+  assert.deepEqual(removeWorkoutHistory(history, 3_000), [history[1]])
+  assert.deepEqual(removeWorkoutHistory(history, 9_000), history)
+})
+
+test('manual history dates move by calendar days and cannot enter the future', () => {
+  const start = new Date(2026, 0, 15, 12, 0, 0).getTime()
+  const tomorrow = new Date(2026, 0, 16, 12, 0, 0).getTime()
+  const twoDaysEarlier = new Date(2026, 0, 13, 12, 0, 0).getTime()
+
+  assert.equal(shiftHistoryDate(start, -2, tomorrow), twoDaysEarlier)
+  assert.equal(shiftHistoryDate(start, 1, tomorrow), tomorrow)
+  assert.equal(shiftHistoryDate(tomorrow, 1, tomorrow), tomorrow)
+})
+
+test('history pagination exposes every stored event in five-item pages', () => {
+  const history = Array.from({ length: 12 }, (_, index) => ({ completedAt: index }))
+
+  assert.deepEqual(paginateWorkoutHistory(history, 2), {
+    entries: history.slice(10, 12),
+    page: 2,
+    pageCount: 3,
+  })
+  assert.deepEqual(paginateWorkoutHistory(history, 99), {
+    entries: history.slice(10, 12),
+    page: 2,
+    pageCount: 3,
+  })
+  assert.deepEqual(paginateWorkoutHistory([], 2), {
+    entries: [],
+    page: 0,
+    pageCount: 1,
+  })
+})
+
+test('invalid history is discarded while legacy entries migrate to other', () => {
   assert.deepEqual(restoreWorkoutHistory([
     { completedAt: 1_000, sets: 4, restSeconds: 60 },
-    { completedAt: 3_000, sets: 4, restSeconds: 75 },
+    { completedAt: 3_000, bodyPart: 'CHEST', sets: 4, restSeconds: 75 },
     { completedAt: 1_000, sets: 4, restSeconds: 60 },
-    { completedAt: 'later', sets: 4, restSeconds: 60 },
-    { completedAt: -1, sets: 4, restSeconds: 60 },
-    { completedAt: 20_000, sets: 4, restSeconds: 60 },
-    { completedAt: 2_000, sets: 4.5, restSeconds: 60 },
+    { completedAt: 2_500, bodyPart: 'INVALID', sets: 4, restSeconds: 60 },
+    { completedAt: 'later', bodyPart: 'BACK', sets: 4, restSeconds: 60 },
+    { completedAt: -1, bodyPart: 'BACK', sets: 4, restSeconds: 60 },
+    { completedAt: 20_000, bodyPart: 'BACK', sets: 4, restSeconds: 60 },
+    { completedAt: 2_000, bodyPart: 'LEGS', sets: 4.5, restSeconds: 60 },
     null,
   ], 10_000), [
-    { completedAt: 3_000, sets: 4, restSeconds: 75 },
-    { completedAt: 1_000, sets: 4, restSeconds: 60 },
+    { completedAt: 3_000, bodyPart: 'CHEST', sets: 4, restSeconds: 75 },
+    { completedAt: 1_000, bodyPart: 'OTHER', sets: 4, restSeconds: 60 },
   ])
 })
 

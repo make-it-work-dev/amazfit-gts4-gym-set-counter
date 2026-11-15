@@ -3,6 +3,16 @@ const DEFAULT_REST_SECONDS = 60
 const MIN_REST_SECONDS = 15
 const MAX_REST_SECONDS = 600
 
+export const BODY_PARTS = [
+  'CHEST',
+  'BICEPS',
+  'TRICEPS',
+  'SHOULDERS',
+  'LEGS',
+  'BACK',
+  'OTHER',
+]
+
 export function createWorkoutState({
   targetSets = DEFAULT_TARGET_SETS,
   restSeconds = DEFAULT_REST_SECONDS,
@@ -126,19 +136,50 @@ export function restoreWorkoutState(saved, nowMs = Date.now()) {
   }
 }
 
+export function restorePendingCompletionAt(saved, nowMs = Date.now()) {
+  return Number.isInteger(saved) && saved > 0 && saved <= nowMs ? saved : null
+}
+
 export function createReminderPulsePlan(seconds = 2) {
   const pulseCount = Math.max(1, Math.floor(seconds))
   return Array.from({ length: pulseCount }, (_, index) => index * 1000)
 }
 
-export function addWorkoutHistory(history, workout, completedAt = Date.now()) {
+export function addWorkoutHistory(history, workout, bodyPart, completedAt = Date.now()) {
   const existing = Array.isArray(history) ? history : []
   const entry = {
     completedAt,
+    bodyPart: BODY_PARTS.includes(bodyPart) ? bodyPart : 'OTHER',
     sets: workout.targetSets,
     restSeconds: workout.restSeconds,
   }
-  return [entry, ...existing].slice(0, 20)
+  return restoreWorkoutHistory([entry, ...existing])
+}
+
+export function removeWorkoutHistory(history, completedAt) {
+  if (!Array.isArray(history)) return []
+  return history.filter((entry) => entry.completedAt !== completedAt)
+}
+
+export function shiftHistoryDate(timestamp, deltaDays, nowMs = Date.now()) {
+  const shifted = new Date(timestamp)
+  if (!Number.isFinite(shifted.getTime())) return nowMs
+  shifted.setDate(shifted.getDate() + Math.trunc(deltaDays))
+  return Math.min(shifted.getTime(), nowMs)
+}
+
+export function paginateWorkoutHistory(history, requestedPage, pageSize = 5) {
+  const entries = Array.isArray(history) ? history : []
+  const safePageSize = Math.max(1, Math.floor(pageSize))
+  const pageCount = Math.max(1, Math.ceil(entries.length / safePageSize))
+  const requested = Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 0
+  const page = Math.max(0, Math.min(pageCount - 1, requested))
+  const start = page * safePageSize
+  return {
+    entries: entries.slice(start, start + safePageSize),
+    page,
+    pageCount,
+  }
 }
 
 export function restoreWorkoutHistory(saved, nowMs = Date.now()) {
@@ -151,13 +192,17 @@ export function restoreWorkoutHistory(saved, nowMs = Date.now()) {
       entry.completedAt > 0 &&
       entry.completedAt <= nowMs &&
       Number.isFinite(new Date(entry.completedAt).getTime())
+    const validBodyPart = entry && (
+      typeof entry.bodyPart === 'undefined' || BODY_PARTS.includes(entry.bodyPart)
+    )
     const validSets = entry && Number.isInteger(entry.sets) && entry.sets >= 1 && entry.sets <= 20
     const validRest = entry && Number.isInteger(entry.restSeconds) &&
       entry.restSeconds >= MIN_REST_SECONDS && entry.restSeconds <= MAX_REST_SECONDS
 
-    if (validTimestamp && validSets && validRest && !latestByTimestamp.has(entry.completedAt)) {
+    if (validTimestamp && validBodyPart && validSets && validRest && !latestByTimestamp.has(entry.completedAt)) {
       latestByTimestamp.set(entry.completedAt, {
         completedAt: entry.completedAt,
+        bodyPart: entry.bodyPart || 'OTHER',
         sets: entry.sets,
         restSeconds: entry.restSeconds,
       })

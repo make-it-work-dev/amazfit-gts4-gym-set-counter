@@ -12,7 +12,9 @@ A minimal Zepp OS 3.0 gym set counter for the Amazfit GTS 4.
 - If the app is closed during rest, Zepp OS schedules the app to reopen at the deadline
 - The display stays awake while the app page is open, including when the wrist is lowered
 - Rest completion repeats Zepp's high-intensity strong-reminder pattern for two seconds, then explicitly stops the motor
-- Completed workouts are stored locally, with the five most recent shown in **HISTORY**
+- After set four, choose **CHEST**, **BICEPS**, **TRICEPS**, **SHOULDERS**, **LEGS**, **BACK**, or **OTHER**
+- Completed workouts are stored locally and shown by date and body part in **HISTORY**
+- **HISTORY → EDIT** can remove entries or add a past workout using a selectable date and body part
 - The **MUSIC** button opens the GTS 4's built-in phone-media controls, preserving the workout/rest deadline while you switch apps
 - Reset button starts the exercise over without deleting history
 

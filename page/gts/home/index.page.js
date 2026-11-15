@@ -29,8 +29,13 @@ import {
   setDefaultRest,
   isValidPersistedWorkoutState,
   restoreWorkoutState,
+  restorePendingCompletionAt,
   createReminderPulsePlan,
+  BODY_PARTS,
   addWorkoutHistory,
+  removeWorkoutHistory,
+  shiftHistoryDate,
+  paginateWorkoutHistory,
   restoreWorkoutHistory,
   createMusicLaunchRequest,
   resetWorkout,
@@ -54,7 +59,25 @@ import {
   SETTINGS_SAVE,
   HISTORY_TITLE,
   HISTORY_ROW,
+  HISTORY_PREV,
+  HISTORY_NEXT,
+  HISTORY_EDIT,
   HISTORY_BACK,
+  HISTORY_EDIT_TITLE,
+  HISTORY_EDIT_ROW,
+  HISTORY_DELETE,
+  HISTORY_ADD,
+  HISTORY_EDIT_BACK,
+  DATE_TITLE,
+  DATE_VALUE,
+  DATE_MINUS,
+  DATE_PLUS,
+  DATE_NEXT,
+  DATE_CANCEL,
+  BODY_PART_TITLE,
+  BODY_PART_BUTTON,
+  BODY_PART_OTHER,
+  BODY_PART_BACK,
 } from './index.style'
 
 const SNAPSHOT_KEY = 'gymSetsSnapshot'
@@ -75,7 +98,13 @@ Page({
     reminderStopTimeoutId: null,
     settingsOpen: false,
     historyOpen: false,
+    historyEditOpen: false,
+    datePickerOpen: false,
+    bodyPartOpen: false,
     history: [],
+    historyPage: 0,
+    pendingHistoryDate: null,
+    pendingHistoryMode: null,
     alertOnBuild: false,
     ui: {},
   },
@@ -91,6 +120,19 @@ Page({
     const wasResting = isValidPersistedWorkoutState(saved) && saved.phase === 'rest'
     this.state.workout = restoreWorkoutState(saved, Date.now())
     this.state.history = restoreWorkoutHistory(savedHistory)
+    if (this.state.workout.phase === 'complete') {
+      const pendingCompletionAt = restorePendingCompletionAt(
+        hasSnapshot ? snapshot.pendingCompletionAt : null,
+        Date.now(),
+      )
+      if (pendingCompletionAt !== null) {
+        this.state.pendingHistoryDate = pendingCompletionAt
+        this.state.pendingHistoryMode = 'completion'
+        this.state.bodyPartOpen = true
+      } else {
+        this.state.workout = resetWorkout(this.state.workout)
+      }
+    }
     this.state.alertOnBuild = wasResting && this.state.workout.phase === 'ready'
     this.saveWorkout()
     localStorage.removeItem(WORKOUT_KEY)
@@ -156,9 +198,89 @@ Page({
         ...HISTORY_ROW,
         y: HISTORY_ROW.y + index * 50,
       }))
+    this.state.ui.historyPrev = createWidget(widget.BUTTON, {
+      ...HISTORY_PREV,
+      click_func: () => this.changeHistoryPage(-1),
+    })
+    this.state.ui.historyNext = createWidget(widget.BUTTON, {
+      ...HISTORY_NEXT,
+      click_func: () => this.changeHistoryPage(1),
+    })
+    this.state.ui.historyEdit = createWidget(widget.BUTTON, {
+      ...HISTORY_EDIT,
+      click_func: () => this.openHistoryEditor(),
+    })
     this.state.ui.historyBack = createWidget(widget.BUTTON, {
       ...HISTORY_BACK,
       click_func: () => this.closeHistory(),
+    })
+
+    this.state.ui.historyEditTitle = createWidget(widget.TEXT, HISTORY_EDIT_TITLE)
+    this.state.ui.historyEditRows = Array.from({ length: 5 }, (_, index) =>
+      createWidget(widget.TEXT, {
+        ...HISTORY_EDIT_ROW,
+        y: HISTORY_EDIT_ROW.y + index * 50,
+      }))
+    this.state.ui.historyDeleteButtons = Array.from({ length: 5 }, (_, index) =>
+      createWidget(widget.BUTTON, {
+        ...HISTORY_DELETE,
+        y: HISTORY_DELETE.y + index * 50,
+        click_func: () => this.removeHistoryAt(index),
+      }))
+    this.state.ui.historyEditPrev = createWidget(widget.BUTTON, {
+      ...HISTORY_PREV,
+      click_func: () => this.changeHistoryPage(-1),
+    })
+    this.state.ui.historyEditNext = createWidget(widget.BUTTON, {
+      ...HISTORY_NEXT,
+      click_func: () => this.changeHistoryPage(1),
+    })
+    this.state.ui.historyAdd = createWidget(widget.BUTTON, {
+      ...HISTORY_ADD,
+      click_func: () => this.startManualHistoryAdd(),
+    })
+    this.state.ui.historyEditBack = createWidget(widget.BUTTON, {
+      ...HISTORY_EDIT_BACK,
+      click_func: () => this.closeHistoryEditor(),
+    })
+
+    this.state.ui.dateTitle = createWidget(widget.TEXT, DATE_TITLE)
+    this.state.ui.dateValue = createWidget(widget.TEXT, DATE_VALUE)
+    this.state.ui.dateMinus = createWidget(widget.BUTTON, {
+      ...DATE_MINUS,
+      click_func: () => this.changeHistoryDate(-1),
+    })
+    this.state.ui.datePlus = createWidget(widget.BUTTON, {
+      ...DATE_PLUS,
+      click_func: () => this.changeHistoryDate(1),
+    })
+    this.state.ui.dateNext = createWidget(widget.BUTTON, {
+      ...DATE_NEXT,
+      click_func: () => this.openBodyPartPicker(),
+    })
+    this.state.ui.dateCancel = createWidget(widget.BUTTON, {
+      ...DATE_CANCEL,
+      click_func: () => this.cancelManualHistoryAdd(),
+    })
+
+    this.state.ui.bodyPartTitle = createWidget(widget.TEXT, BODY_PART_TITLE)
+    this.state.ui.bodyPartButtons = BODY_PARTS.map((bodyPart, index) => {
+      const style = index === BODY_PARTS.length - 1
+        ? BODY_PART_OTHER
+        : {
+          ...BODY_PART_BUTTON,
+          x: index % 2 === 0 ? 18 : 202,
+          y: BODY_PART_BUTTON.y + Math.floor(index / 2) * 64,
+        }
+      return createWidget(widget.BUTTON, {
+        ...style,
+        text: bodyPart,
+        click_func: () => this.selectBodyPart(bodyPart),
+      })
+    })
+    this.state.ui.bodyPartBack = createWidget(widget.BUTTON, {
+      ...BODY_PART_BACK,
+      click_func: () => this.backFromBodyPartPicker(),
     })
 
     this.render()
@@ -190,9 +312,12 @@ Page({
     if (current.phase === 'rest' || current.phase === 'complete') return
 
     this.stopRestReminder()
-    this.state.workout = completeSet(current, Date.now())
+    const completedAt = Date.now()
+    this.state.workout = completeSet(current, completedAt)
     if (this.state.workout.phase === 'complete') {
-      this.state.history = addWorkoutHistory(this.state.history, this.state.workout, Date.now())
+      this.state.pendingHistoryDate = completedAt
+      this.state.pendingHistoryMode = 'completion'
+      this.state.bodyPartOpen = true
     }
     this.saveWorkout()
     vibrator.start({ mode: VIBRATOR_SCENE_SHORT_STRONG })
@@ -202,6 +327,9 @@ Page({
   reset() {
     this.stopRestReminder()
     this.state.workout = resetWorkout(this.state.workout)
+    this.state.bodyPartOpen = false
+    this.state.pendingHistoryDate = null
+    this.state.pendingHistoryMode = null
     this.saveWorkout()
     this.render()
   },
@@ -220,6 +348,9 @@ Page({
 
   openHistory() {
     this.state.settingsOpen = false
+    this.state.historyEditOpen = false
+    this.state.datePickerOpen = false
+    this.state.historyPage = 0
     this.state.historyOpen = true
     this.render()
   },
@@ -229,17 +360,119 @@ Page({
     this.render()
   },
 
+  openHistoryEditor() {
+    this.state.historyOpen = false
+    this.state.historyEditOpen = true
+    this.render()
+  },
+
+  closeHistoryEditor() {
+    this.state.historyEditOpen = false
+    this.state.historyOpen = true
+    this.render()
+  },
+
+  changeHistoryPage(delta) {
+    const page = paginateWorkoutHistory(
+      this.state.history,
+      this.state.historyPage + delta,
+    )
+    this.state.historyPage = page.page
+    this.render()
+  },
+
+  removeHistoryAt(index) {
+    const absoluteIndex = this.state.historyPage * 5 + index
+    const entry = this.state.history[absoluteIndex]
+    if (!entry) return
+    this.state.history = removeWorkoutHistory(this.state.history, entry.completedAt)
+    this.state.historyPage = paginateWorkoutHistory(
+      this.state.history,
+      this.state.historyPage,
+    ).page
+    this.saveWorkout()
+    this.render()
+  },
+
+  startManualHistoryAdd() {
+    this.state.historyEditOpen = false
+    this.state.datePickerOpen = true
+    this.state.pendingHistoryDate = Date.now()
+    this.state.pendingHistoryMode = 'manual'
+    this.render()
+  },
+
+  changeHistoryDate(days) {
+    if (!this.state.pendingHistoryDate) return
+    this.state.pendingHistoryDate = shiftHistoryDate(
+      this.state.pendingHistoryDate,
+      days,
+      Date.now(),
+    )
+    this.render()
+  },
+
+  openBodyPartPicker() {
+    if (!this.state.pendingHistoryDate) return
+    this.state.datePickerOpen = false
+    this.state.bodyPartOpen = true
+    this.render()
+  },
+
+  backFromBodyPartPicker() {
+    if (this.state.pendingHistoryMode !== 'manual') return
+    this.state.bodyPartOpen = false
+    this.state.datePickerOpen = true
+    this.render()
+  },
+
+  cancelManualHistoryAdd() {
+    this.state.datePickerOpen = false
+    this.state.historyEditOpen = true
+    this.state.pendingHistoryDate = null
+    this.state.pendingHistoryMode = null
+    this.render()
+  },
+
+  selectBodyPart(bodyPart) {
+    if (!this.state.pendingHistoryDate || !BODY_PARTS.includes(bodyPart)) return
+    const mode = this.state.pendingHistoryMode
+    this.state.history = addWorkoutHistory(
+      this.state.history,
+      this.state.workout,
+      bodyPart,
+      this.state.pendingHistoryDate,
+    )
+    if (mode === 'completion') {
+      this.state.workout = resetWorkout(this.state.workout)
+    }
+    this.state.bodyPartOpen = false
+    this.state.historyEditOpen = mode === 'manual'
+    if (mode === 'manual') this.state.historyPage = 0
+    this.state.pendingHistoryDate = null
+    this.state.pendingHistoryMode = null
+    this.saveWorkout()
+    vibrator.start({ mode: VIBRATOR_SCENE_SHORT_STRONG })
+    this.render()
+  },
+
   launchMusicControls() {
     launchApp(createMusicLaunchRequest(SYSTEM_APP_MUSIC))
   },
 
   formatHistoryEntry(entry) {
     const date = new Date(entry.completedAt)
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    return `${month}/${day} ${hours}:${minutes} - ${entry.sets} SETS`
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const year = String(date.getFullYear()).slice(-2)
+    return `${month}/${day}/${year}  ${entry.bodyPart}`
+  },
+
+  formatHistoryDate(timestamp) {
+    const date = new Date(timestamp)
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${month}/${day}/${date.getFullYear()}`
   },
 
   changeDefaultRest(seconds) {
@@ -294,6 +527,9 @@ Page({
     localStorage.setItem(SNAPSHOT_KEY, {
       workout: this.state.workout,
       history: this.state.history,
+      pendingCompletionAt: this.state.pendingHistoryMode === 'completion'
+        ? this.state.pendingHistoryDate
+        : null,
     })
   },
 
@@ -354,7 +590,11 @@ Page({
     const state = this.state.workout
     const isResting = state.phase === 'rest'
     const isComplete = state.phase === 'complete'
-    const showMain = !this.state.settingsOpen && !this.state.historyOpen
+    const showMain = !this.state.settingsOpen &&
+      !this.state.historyOpen &&
+      !this.state.historyEditOpen &&
+      !this.state.datePickerOpen &&
+      !this.state.bodyPartOpen
     const nextSet = Math.min(state.completedSets + 1, state.targetSets)
 
     this.state.ui.sets.setProperty(prop.TEXT, `${state.completedSets} / ${state.targetSets}`)
@@ -384,16 +624,84 @@ Page({
     this.setVisible(this.state.ui.settingsPlus, this.state.settingsOpen)
     this.setVisible(this.state.ui.settingsSave, this.state.settingsOpen)
 
+    const historyPage = paginateWorkoutHistory(
+      this.state.history,
+      this.state.historyPage,
+    )
+    this.state.historyPage = historyPage.page
+    this.state.ui.historyTitle.setProperty(
+      prop.TEXT,
+      `HISTORY ${historyPage.page + 1}/${historyPage.pageCount}`,
+    )
     this.setVisible(this.state.ui.historyTitle, this.state.historyOpen)
+    this.setVisible(
+      this.state.ui.historyPrev,
+      this.state.historyOpen && historyPage.page > 0,
+    )
+    this.setVisible(
+      this.state.ui.historyNext,
+      this.state.historyOpen && historyPage.page < historyPage.pageCount - 1,
+    )
+    this.setVisible(this.state.ui.historyEdit, this.state.historyOpen)
     this.setVisible(this.state.ui.historyBack, this.state.historyOpen)
     this.state.ui.historyRows.forEach((row, index) => {
-      const entry = this.state.history[index]
+      const entry = historyPage.entries[index]
       const text = entry
         ? this.formatHistoryEntry(entry)
         : index === 0 ? 'NO COMPLETED WORKOUTS' : ''
       row.setProperty(prop.TEXT, text)
       this.setVisible(row, this.state.historyOpen && text.length > 0)
     })
+
+    this.state.ui.historyEditTitle.setProperty(
+      prop.TEXT,
+      `EDIT ${historyPage.page + 1}/${historyPage.pageCount}`,
+    )
+    this.setVisible(this.state.ui.historyEditTitle, this.state.historyEditOpen)
+    this.setVisible(
+      this.state.ui.historyEditPrev,
+      this.state.historyEditOpen && historyPage.page > 0,
+    )
+    this.setVisible(
+      this.state.ui.historyEditNext,
+      this.state.historyEditOpen && historyPage.page < historyPage.pageCount - 1,
+    )
+    this.setVisible(this.state.ui.historyAdd, this.state.historyEditOpen)
+    this.setVisible(this.state.ui.historyEditBack, this.state.historyEditOpen)
+    this.state.ui.historyEditRows.forEach((row, index) => {
+      const entry = historyPage.entries[index]
+      const text = entry
+        ? this.formatHistoryEntry(entry)
+        : index === 0 ? 'NO HISTORY' : ''
+      row.setProperty(prop.TEXT, text)
+      this.setVisible(row, this.state.historyEditOpen && text.length > 0)
+      this.setVisible(
+        this.state.ui.historyDeleteButtons[index],
+        this.state.historyEditOpen && Boolean(entry),
+      )
+    })
+
+    const selectedDate = this.state.pendingHistoryDate || Date.now()
+    this.state.ui.dateValue.setProperty(prop.TEXT, this.formatHistoryDate(selectedDate))
+    this.setVisible(this.state.ui.dateTitle, this.state.datePickerOpen)
+    this.setVisible(this.state.ui.dateValue, this.state.datePickerOpen)
+    this.setVisible(this.state.ui.dateMinus, this.state.datePickerOpen)
+    this.setVisible(this.state.ui.datePlus, this.state.datePickerOpen)
+    this.setVisible(this.state.ui.dateNext, this.state.datePickerOpen)
+    this.setVisible(this.state.ui.dateCancel, this.state.datePickerOpen)
+
+    this.state.ui.bodyPartTitle.setProperty(
+      prop.TEXT,
+      this.state.pendingHistoryMode === 'completion' ? 'WHAT DID YOU TRAIN?' : 'BODY PART',
+    )
+    this.setVisible(this.state.ui.bodyPartTitle, this.state.bodyPartOpen)
+    this.state.ui.bodyPartButtons.forEach((button) => {
+      this.setVisible(button, this.state.bodyPartOpen)
+    })
+    this.setVisible(
+      this.state.ui.bodyPartBack,
+      this.state.bodyPartOpen && this.state.pendingHistoryMode === 'manual',
+    )
   },
 
   onDestroy() {

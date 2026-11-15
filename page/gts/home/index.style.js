@@ -198,9 +198,9 @@ export const HISTORY_TITLE = {
 }
 
 export const HISTORY_ROW = {
-  x: 28,
-  y: 112,
-  w: 334,
+  x: 24,
+  y: 104,
+  w: 342,
   h: 46,
   text: '',
   color: COLORS.text,
@@ -209,15 +209,217 @@ export const HISTORY_ROW = {
   align_v: align.CENTER_V,
 }
 
-export const HISTORY_BACK = {
-  x: 50,
+export const HISTORY_PREV = {
+  x: 10,
   y: 378,
-  w: 290,
-  h: 54,
+  w: 82,
+  h: 52,
+  text: 'PREV',
+  text_size: 16,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 18,
+}
+
+export const HISTORY_NEXT = {
+  ...HISTORY_PREV,
+  x: 106,
+  text: 'NEXT',
+}
+
+export const HISTORY_EDIT = {
+  x: 202,
+  y: 378,
+  w: 82,
+  h: 52,
+  text: 'EDIT',
+  text_size: 16,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 18,
+}
+
+export const HISTORY_BACK = {
+  x: 298,
+  y: 378,
+  w: 82,
+  h: 52,
   text: 'BACK',
-  text_size: 22,
+  text_size: 16,
+  color: COLORS.background,
+  normal_color: COLORS.primary,
+  press_color: COLORS.primaryPressed,
+  radius: 18,
+}
+
+export const HISTORY_EDIT_TITLE = {
+  x: 24,
+  y: 52,
+  w: 342,
+  h: 44,
+  text: 'EDIT HISTORY',
+  color: COLORS.primary,
+  text_size: 29,
+  ...CENTERED,
+}
+
+export const HISTORY_EDIT_ROW = {
+  x: 20,
+  y: 100,
+  w: 278,
+  h: 46,
+  text: '',
+  color: COLORS.text,
+  text_size: 17,
+  align_h: align.LEFT,
+  align_v: align.CENTER_V,
+}
+
+export const HISTORY_DELETE = {
+  x: 310,
+  y: 104,
+  w: 60,
+  h: 38,
+  text: 'X',
+  text_size: 19,
+  color: COLORS.text,
+  normal_color: 0x6e2424,
+  press_color: 0x9b3434,
+  radius: 16,
+}
+
+export const HISTORY_ADD = {
+  ...HISTORY_EDIT,
+  text: 'ADD',
+  color: COLORS.background,
+  normal_color: COLORS.primary,
+  press_color: COLORS.primaryPressed,
+}
+
+export const HISTORY_EDIT_BACK = {
+  ...HISTORY_BACK,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+}
+
+export const DATE_TITLE = {
+  x: 24,
+  y: 58,
+  w: 342,
+  h: 44,
+  text: 'WORKOUT DATE',
+  color: COLORS.primary,
+  text_size: 29,
+  ...CENTERED,
+}
+
+export const DATE_VALUE = {
+  x: 24,
+  y: 120,
+  w: 342,
+  h: 72,
+  text: '',
+  color: COLORS.text,
+  text_size: 36,
+  ...CENTERED,
+}
+
+export const DATE_MINUS = {
+  x: 35,
+  y: 220,
+  w: 150,
+  h: 60,
+  text: '- DAY',
+  text_size: 23,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 20,
+}
+
+export const DATE_PLUS = {
+  x: 205,
+  y: 220,
+  w: 150,
+  h: 60,
+  text: '+ DAY',
+  text_size: 23,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 20,
+}
+
+export const DATE_NEXT = {
+  x: 35,
+  y: 306,
+  w: 320,
+  h: 58,
+  text: 'SELECT BODY PART',
+  text_size: 23,
   color: COLORS.background,
   normal_color: COLORS.primary,
   press_color: COLORS.primaryPressed,
   radius: 20,
+}
+
+export const DATE_CANCEL = {
+  x: 90,
+  y: 380,
+  w: 210,
+  h: 48,
+  text: 'CANCEL',
+  text_size: 20,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 18,
+}
+
+export const BODY_PART_TITLE = {
+  x: 20,
+  y: 48,
+  w: 350,
+  h: 46,
+  text: 'BODY PART',
+  color: COLORS.primary,
+  text_size: 24,
+  ...CENTERED,
+}
+
+export const BODY_PART_BUTTON = {
+  x: 18,
+  y: 102,
+  w: 170,
+  h: 56,
+  text: '',
+  text_size: 20,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 19,
+}
+
+export const BODY_PART_OTHER = {
+  ...BODY_PART_BUTTON,
+  x: 18,
+  y: 294,
+  w: 354,
+  h: 56,
+}
+
+export const BODY_PART_BACK = {
+  x: 90,
+  y: 370,
+  w: 210,
+  h: 50,
+  text: 'BACK',
+  text_size: 20,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 18,
 }
