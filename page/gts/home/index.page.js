@@ -2,7 +2,7 @@ import { createWidget, widget, prop } from '@zos/ui'
 import {
   Vibrator,
   VIBRATOR_SCENE_SHORT_STRONG,
-  VIBRATOR_SCENE_DURATION_LONG,
+  VIBRATOR_SCENE_STRONG_REMINDER,
 } from '@zos/sensor'
 import { localStorage } from '@zos/storage'
 import {
@@ -14,7 +14,12 @@ import {
   pausePalmScreenOff,
   resetPalmScreenOff,
 } from '@zos/display'
-import { setLaunchAppTimeout, clearLaunchAppTimeout } from '@zos/router'
+import {
+  setLaunchAppTimeout,
+  clearLaunchAppTimeout,
+  launchApp,
+  SYSTEM_APP_MUSIC,
+} from '@zos/router'
 import { getPackageInfo } from '@zos/app'
 
 import {
@@ -27,7 +32,7 @@ import {
   createReminderPulsePlan,
   addWorkoutHistory,
   restoreWorkoutHistory,
-  normalizeMusicInfo,
+  createMusicLaunchRequest,
   resetWorkout,
   formatSeconds,
 } from '../../../shared/workout-state'
@@ -50,14 +55,6 @@ import {
   HISTORY_TITLE,
   HISTORY_ROW,
   HISTORY_BACK,
-  MUSIC_TITLE,
-  MUSIC_TRACK,
-  MUSIC_ARTIST,
-  MUSIC_PREV,
-  MUSIC_PLAY,
-  MUSIC_NEXT,
-  MUSIC_STATUS,
-  MUSIC_BACK,
 } from './index.style'
 
 const SNAPSHOT_KEY = 'gymSetsSnapshot'
@@ -78,11 +75,6 @@ Page({
     reminderStopTimeoutId: null,
     settingsOpen: false,
     historyOpen: false,
-    musicOpen: false,
-    musicSensor: null,
-    musicChangeHandler: null,
-    musicAvailable: false,
-    musicInfo: normalizeMusicInfo(null),
     history: [],
     alertOnBuild: false,
     ui: {},
@@ -136,7 +128,7 @@ Page({
     })
     this.state.ui.music = createWidget(widget.BUTTON, {
       ...MUSIC_BUTTON,
-      click_func: () => this.openMusic(),
+      click_func: () => this.launchMusicControls(),
     })
     this.state.ui.settings = createWidget(widget.BUTTON, {
       ...SETTINGS_BUTTON,
@@ -167,27 +159,6 @@ Page({
     this.state.ui.historyBack = createWidget(widget.BUTTON, {
       ...HISTORY_BACK,
       click_func: () => this.closeHistory(),
-    })
-
-    this.state.ui.musicTitle = createWidget(widget.TEXT, MUSIC_TITLE)
-    this.state.ui.musicTrack = createWidget(widget.TEXT, MUSIC_TRACK)
-    this.state.ui.musicArtist = createWidget(widget.TEXT, MUSIC_ARTIST)
-    this.state.ui.musicPrev = createWidget(widget.BUTTON, {
-      ...MUSIC_PREV,
-      click_func: () => this.previousTrack(),
-    })
-    this.state.ui.musicPlay = createWidget(widget.BUTTON, {
-      ...MUSIC_PLAY,
-      click_func: () => this.toggleMusic(),
-    })
-    this.state.ui.musicNext = createWidget(widget.BUTTON, {
-      ...MUSIC_NEXT,
-      click_func: () => this.nextTrack(),
-    })
-    this.state.ui.musicStatus = createWidget(widget.TEXT, MUSIC_STATUS)
-    this.state.ui.musicBack = createWidget(widget.BUTTON, {
-      ...MUSIC_BACK,
-      click_func: () => this.closeMusic(),
     })
 
     this.render()
@@ -258,93 +229,8 @@ Page({
     this.render()
   },
 
-  openMusic() {
-    this.state.settingsOpen = false
-    this.state.historyOpen = false
-    this.state.musicOpen = true
-    this.initializeMusicControls()
-    this.render()
-  },
-
-  closeMusic() {
-    this.state.musicOpen = false
-    this.render()
-  },
-
-  initializeMusicControls() {
-    if (this.state.musicSensor) {
-      this.updateMusicInfo()
-      return
-    }
-
-    if (
-      typeof hmSensor === 'undefined' ||
-      !hmSensor.id ||
-      typeof hmSensor.id.MUSIC === 'undefined'
-    ) {
-      this.state.musicAvailable = false
-      return
-    }
-
-    try {
-      const sensor = hmSensor.createSensor(hmSensor.id.MUSIC)
-      if (!sensor) return
-      sensor.audInit()
-      const handler = () => {
-        this.updateMusicInfo()
-        this.render()
-      }
-      sensor.addEventListener(hmSensor.event.CHANGE, handler)
-      this.state.musicSensor = sensor
-      this.state.musicChangeHandler = handler
-      this.state.musicAvailable = true
-      this.updateMusicInfo()
-    } catch (error) {
-      this.state.musicAvailable = false
-      this.state.musicSensor = null
-    }
-  },
-
-  updateMusicInfo() {
-    const sensor = this.state.musicSensor
-    if (!sensor) {
-      this.state.musicInfo = normalizeMusicInfo(null)
-      return
-    }
-    this.state.musicInfo = normalizeMusicInfo({
-      title: sensor.title,
-      artist: sensor.artist,
-      isPlaying: sensor.isPlaying,
-    })
-  },
-
-  toggleMusic() {
-    const sensor = this.state.musicSensor
-    if (!sensor) return
-    try {
-      if (sensor.isPlaying) sensor.audPause()
-      else sensor.audPlay()
-      setTimeout(() => {
-        this.updateMusicInfo()
-        this.render()
-      }, 250)
-    } catch (error) {}
-  },
-
-  previousTrack() {
-    const sensor = this.state.musicSensor
-    if (!sensor) return
-    try {
-      sensor.audPrev()
-    } catch (error) {}
-  },
-
-  nextTrack() {
-    const sensor = this.state.musicSensor
-    if (!sensor) return
-    try {
-      sensor.audNext()
-    } catch (error) {}
+  launchMusicControls() {
+    launchApp(createMusicLaunchRequest(SYSTEM_APP_MUSIC))
   },
 
   formatHistoryEntry(entry) {
@@ -371,7 +257,7 @@ Page({
     let pulseIndex = 0
 
     const pulse = () => {
-      vibrator.start({ mode: VIBRATOR_SCENE_DURATION_LONG })
+      vibrator.start({ mode: VIBRATOR_SCENE_STRONG_REMINDER })
       pulseIndex += 1
 
       if (pulseIndex >= pulsePlan.length) {
@@ -382,7 +268,7 @@ Page({
         this.state.reminderStopTimeoutId = setTimeout(() => {
           vibrator.stop()
           this.state.reminderStopTimeoutId = null
-        }, 1100)
+        }, 1000)
       }
     }
 
@@ -468,7 +354,7 @@ Page({
     const state = this.state.workout
     const isResting = state.phase === 'rest'
     const isComplete = state.phase === 'complete'
-    const showMain = !this.state.settingsOpen && !this.state.historyOpen && !this.state.musicOpen
+    const showMain = !this.state.settingsOpen && !this.state.historyOpen
     const nextSet = Math.min(state.completedSets + 1, state.targetSets)
 
     this.state.ui.sets.setProperty(prop.TEXT, `${state.completedSets} / ${state.targetSets}`)
@@ -508,41 +394,10 @@ Page({
       row.setProperty(prop.TEXT, text)
       this.setVisible(row, this.state.historyOpen && text.length > 0)
     })
-
-    const music = this.state.musicInfo
-    this.state.ui.musicTrack.setProperty(prop.TEXT, music.title)
-    this.state.ui.musicArtist.setProperty(prop.TEXT, music.artist)
-    this.state.ui.musicStatus.setProperty(
-      prop.TEXT,
-      this.state.musicAvailable
-        ? music.isPlaying ? 'PLAYING' : 'PAUSED'
-        : 'MUSIC CONTROL UNAVAILABLE',
-    )
-    this.setVisible(this.state.ui.musicTitle, this.state.musicOpen)
-    this.setVisible(this.state.ui.musicTrack, this.state.musicOpen)
-    this.setVisible(this.state.ui.musicArtist, this.state.musicOpen)
-    this.setVisible(this.state.ui.musicPrev, this.state.musicOpen)
-    this.setVisible(this.state.ui.musicPlay, this.state.musicOpen)
-    this.setVisible(this.state.ui.musicNext, this.state.musicOpen)
-    this.setVisible(this.state.ui.musicStatus, this.state.musicOpen)
-    this.setVisible(this.state.ui.musicBack, this.state.musicOpen)
   },
 
   onDestroy() {
     if (this.state.intervalId !== null) clearInterval(this.state.intervalId)
-    if (
-      this.state.musicSensor &&
-      this.state.musicChangeHandler &&
-      typeof this.state.musicSensor.removeEventListener === 'function' &&
-      typeof hmSensor !== 'undefined'
-    ) {
-      try {
-        this.state.musicSensor.removeEventListener(
-          hmSensor.event.CHANGE,
-          this.state.musicChangeHandler,
-        )
-      } catch (error) {}
-    }
     this.stopRestReminder()
     this.state.workout = syncRest(this.state.workout, Date.now())
     this.saveWorkout()

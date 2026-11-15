@@ -5,8 +5,8 @@
     "appName": "Gym Sets",
     "appType": "app",
     "version": {
-      "code": 5,
-      "name": "1.4.0"
+      "code": 6,
+      "name": "1.4.1"
     },
     "icon": "icon.png",
     "vender": "LMAO",
@@ -15,9 +15,9 @@
   "permissions": ["device:os.local_storage"],
   "runtime": {
     "apiVersion": {
-      "compatible": "2.1",
-      "target": "2.1",
-      "minVersion": "2.1"
+      "compatible": "3.0",
+      "target": "3.0",
+      "minVersion": "3.0"
     }
   },
   "debug": false,

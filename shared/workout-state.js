@@ -169,12 +169,10 @@ export function restoreWorkoutHistory(saved, nowMs = Date.now()) {
     .slice(0, 20)
 }
 
-export function normalizeMusicInfo(music) {
-  const source = music && typeof music === 'object' ? music : {}
+export function createMusicLaunchRequest(appId) {
   return {
-    title: typeof source.title === 'string' && source.title.trim() ? source.title.trim() : 'NO TRACK',
-    artist: typeof source.artist === 'string' && source.artist.trim() ? source.artist.trim() : 'OPEN MUSIC ON PHONE',
-    isPlaying: source.isPlaying === true,
+    appId,
+    native: true,
   }
 }
 

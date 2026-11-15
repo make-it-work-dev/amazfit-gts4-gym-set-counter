@@ -1,6 +1,6 @@
 # Gym Sets for Amazfit GTS 4
 
-A minimal Zepp OS 2.1 gym set counter for the Amazfit GTS 4.
+A minimal Zepp OS 3.0 gym set counter for the Amazfit GTS 4.
 
 ## Behavior
 
@@ -11,9 +11,9 @@ A minimal Zepp OS 2.1 gym set counter for the Amazfit GTS 4.
 - Rest uses an absolute deadline, so leaving and reopening the app does not pause it
 - If the app is closed during rest, Zepp OS schedules the app to reopen at the deadline
 - The display stays awake while the app page is open, including when the wrist is lowered
-- Rest completion uses two high-intensity, one-second vibration pulses and explicitly stops the motor
+- Rest completion repeats Zepp's high-intensity strong-reminder pattern for two seconds, then explicitly stops the motor
 - Completed workouts are stored locally, with the five most recent shown in **HISTORY**
-- The **MUSIC** screen provides phone-media play/pause, previous, and next controls plus track metadata when the GTS 4 exposes Zepp's legacy music-control sensor
+- The **MUSIC** button opens the GTS 4's built-in phone-media controls, preserving the workout/rest deadline while you switch apps
 - Reset button starts the exercise over without deleting history
 
 ## Accelerometer status

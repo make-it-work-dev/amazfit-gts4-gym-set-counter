@@ -12,7 +12,7 @@ import {
   createReminderPulsePlan,
   addWorkoutHistory,
   restoreWorkoutHistory,
-  normalizeMusicInfo,
+  createMusicLaunchRequest,
   resetWorkout,
   formatSeconds,
 } from '../shared/workout-state.js'
@@ -126,7 +126,7 @@ test('recovers safely from corrupt persisted workout data', () => {
   )
 })
 
-test('rest reminder is bounded to two one-second pulses', () => {
+test('strong rest reminder repeats for two seconds then stops', () => {
   assert.deepEqual(createReminderPulsePlan(), [0, 1000])
 })
 
@@ -164,20 +164,10 @@ test('invalid history entries are discarded, deduplicated, and sorted newest fir
   ])
 })
 
-test('music metadata is normalized for the watch display', () => {
-  assert.deepEqual(normalizeMusicInfo({
-    title: 'Song',
-    artist: 'Artist',
-    isPlaying: true,
-  }), {
-    title: 'Song',
-    artist: 'Artist',
-    isPlaying: true,
-  })
-  assert.deepEqual(normalizeMusicInfo({}), {
-    title: 'NO TRACK',
-    artist: 'OPEN MUSIC ON PHONE',
-    isPlaying: false,
+test('system music controls launch as a native app', () => {
+  assert.deepEqual(createMusicLaunchRequest(1234), {
+    appId: 1234,
+    native: true,
   })
 })
 
