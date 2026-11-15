@@ -131,6 +131,44 @@ export function createReminderPulsePlan(seconds = 5) {
   return Array.from({ length: pulseCount }, (_, index) => index * 1000)
 }
 
+export function addWorkoutHistory(history, workout, completedAt = Date.now()) {
+  const existing = Array.isArray(history) ? history : []
+  const entry = {
+    completedAt,
+    sets: workout.targetSets,
+    restSeconds: workout.restSeconds,
+  }
+  return [entry, ...existing].slice(0, 20)
+}
+
+export function restoreWorkoutHistory(saved, nowMs = Date.now()) {
+  if (!Array.isArray(saved)) return []
+
+  const latestByTimestamp = new Map()
+  saved.forEach((entry) => {
+    const validTimestamp = entry &&
+      Number.isInteger(entry.completedAt) &&
+      entry.completedAt > 0 &&
+      entry.completedAt <= nowMs &&
+      Number.isFinite(new Date(entry.completedAt).getTime())
+    const validSets = entry && Number.isInteger(entry.sets) && entry.sets >= 1 && entry.sets <= 20
+    const validRest = entry && Number.isInteger(entry.restSeconds) &&
+      entry.restSeconds >= MIN_REST_SECONDS && entry.restSeconds <= MAX_REST_SECONDS
+
+    if (validTimestamp && validSets && validRest && !latestByTimestamp.has(entry.completedAt)) {
+      latestByTimestamp.set(entry.completedAt, {
+        completedAt: entry.completedAt,
+        sets: entry.sets,
+        restSeconds: entry.restSeconds,
+      })
+    }
+  })
+
+  return [...latestByTimestamp.values()]
+    .sort((a, b) => b.completedAt - a.completedAt)
+    .slice(0, 20)
+}
+
 export function resetWorkout(state) {
   return createWorkoutState({
     targetSets: state.targetSets,

@@ -2,7 +2,7 @@ import { createWidget, widget, prop } from '@zos/ui'
 import {
   Vibrator,
   VIBRATOR_SCENE_SHORT_STRONG,
-  VIBRATOR_SCENE_DURATION,
+  VIBRATOR_SCENE_DURATION_LONG,
 } from '@zos/sensor'
 import { localStorage } from '@zos/storage'
 import {
@@ -25,6 +25,8 @@ import {
   isValidPersistedWorkoutState,
   restoreWorkoutState,
   createReminderPulsePlan,
+  addWorkoutHistory,
+  restoreWorkoutHistory,
   resetWorkout,
   formatSeconds,
 } from '../../../shared/workout-state'
@@ -36,15 +38,21 @@ import {
   TIMER,
   DONE_BUTTON,
   RESET_BUTTON,
+  HISTORY_BUTTON,
   SETTINGS_BUTTON,
   SETTINGS_TITLE,
   SETTINGS_VALUE,
   SETTINGS_MINUS,
   SETTINGS_PLUS,
   SETTINGS_SAVE,
+  HISTORY_TITLE,
+  HISTORY_ROW,
+  HISTORY_BACK,
 } from './index.style'
 
+const SNAPSHOT_KEY = 'gymSetsSnapshot'
 const WORKOUT_KEY = 'gymSetsWorkout'
+const HISTORY_KEY = 'gymSetsHistory'
 const ALARM_KEY = 'gymSetsAlarmId'
 const ALARM_FAILED_KEY = 'gymSetsAlarmFailedAt'
 const APP_ID = getPackageInfo().appId || 2889041
@@ -59,6 +67,8 @@ Page({
     reminderIntervalId: null,
     reminderStopTimeoutId: null,
     settingsOpen: false,
+    historyOpen: false,
+    history: [],
     alertOnBuild: false,
     ui: {},
   },
@@ -67,11 +77,17 @@ Page({
     setWakeUpRelaunch({ relaunch: true })
     this.clearPendingAlarm()
 
-    const saved = localStorage.getItem(WORKOUT_KEY, null)
+    const snapshot = localStorage.getItem(SNAPSHOT_KEY, null)
+    const hasSnapshot = snapshot && typeof snapshot === 'object'
+    const saved = hasSnapshot ? snapshot.workout : localStorage.getItem(WORKOUT_KEY, null)
+    const savedHistory = hasSnapshot ? snapshot.history : localStorage.getItem(HISTORY_KEY, [])
     const wasResting = isValidPersistedWorkoutState(saved) && saved.phase === 'rest'
     this.state.workout = restoreWorkoutState(saved, Date.now())
+    this.state.history = restoreWorkoutHistory(savedHistory)
     this.state.alertOnBuild = wasResting && this.state.workout.phase === 'ready'
     this.saveWorkout()
+    localStorage.removeItem(WORKOUT_KEY)
+    localStorage.removeItem(HISTORY_KEY)
   },
 
   build() {
@@ -99,6 +115,10 @@ Page({
       ...RESET_BUTTON,
       click_func: () => this.reset(),
     })
+    this.state.ui.history = createWidget(widget.BUTTON, {
+      ...HISTORY_BUTTON,
+      click_func: () => this.openHistory(),
+    })
     this.state.ui.settings = createWidget(widget.BUTTON, {
       ...SETTINGS_BUTTON,
       click_func: () => this.openSettings(),
@@ -117,6 +137,17 @@ Page({
     this.state.ui.settingsSave = createWidget(widget.BUTTON, {
       ...SETTINGS_SAVE,
       click_func: () => this.closeSettings(),
+    })
+
+    this.state.ui.historyTitle = createWidget(widget.TEXT, HISTORY_TITLE)
+    this.state.ui.historyRows = Array.from({ length: 5 }, (_, index) =>
+      createWidget(widget.TEXT, {
+        ...HISTORY_ROW,
+        y: HISTORY_ROW.y + index * 50,
+      }))
+    this.state.ui.historyBack = createWidget(widget.BUTTON, {
+      ...HISTORY_BACK,
+      click_func: () => this.closeHistory(),
     })
 
     this.render()
@@ -149,6 +180,9 @@ Page({
 
     this.stopRestReminder()
     this.state.workout = completeSet(current, Date.now())
+    if (this.state.workout.phase === 'complete') {
+      this.state.history = addWorkoutHistory(this.state.history, this.state.workout, Date.now())
+    }
     this.saveWorkout()
     vibrator.start({ mode: VIBRATOR_SCENE_SHORT_STRONG })
     this.render()
@@ -162,6 +196,7 @@ Page({
   },
 
   openSettings() {
+    this.state.historyOpen = false
     this.state.settingsOpen = true
     this.render()
   },
@@ -170,6 +205,26 @@ Page({
     this.state.settingsOpen = false
     this.saveWorkout()
     this.render()
+  },
+
+  openHistory() {
+    this.state.settingsOpen = false
+    this.state.historyOpen = true
+    this.render()
+  },
+
+  closeHistory() {
+    this.state.historyOpen = false
+    this.render()
+  },
+
+  formatHistoryEntry(entry) {
+    const date = new Date(entry.completedAt)
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${month}/${day} ${hours}:${minutes} - ${entry.sets} SETS`
   },
 
   changeDefaultRest(seconds) {
@@ -187,7 +242,7 @@ Page({
     let pulseIndex = 0
 
     const pulse = () => {
-      vibrator.start({ mode: VIBRATOR_SCENE_DURATION })
+      vibrator.start({ mode: VIBRATOR_SCENE_DURATION_LONG })
       pulseIndex += 1
 
       if (pulseIndex >= pulsePlan.length) {
@@ -198,7 +253,7 @@ Page({
         this.state.reminderStopTimeoutId = setTimeout(() => {
           vibrator.stop()
           this.state.reminderStopTimeoutId = null
-        }, 700)
+        }, 1100)
       }
     }
 
@@ -221,7 +276,10 @@ Page({
   },
 
   saveWorkout() {
-    localStorage.setItem(WORKOUT_KEY, this.state.workout)
+    localStorage.setItem(SNAPSHOT_KEY, {
+      workout: this.state.workout,
+      history: this.state.history,
+    })
   },
 
   clearPendingAlarm() {
@@ -281,7 +339,7 @@ Page({
     const state = this.state.workout
     const isResting = state.phase === 'rest'
     const isComplete = state.phase === 'complete'
-    const showMain = !this.state.settingsOpen
+    const showMain = !this.state.settingsOpen && !this.state.historyOpen
     const nextSet = Math.min(state.completedSets + 1, state.targetSets)
 
     this.state.ui.sets.setProperty(prop.TEXT, `${state.completedSets} / ${state.targetSets}`)
@@ -300,6 +358,7 @@ Page({
     this.setVisible(this.state.ui.status, showMain)
     this.setVisible(this.state.ui.timer, showMain)
     this.setVisible(this.state.ui.reset, showMain)
+    this.setVisible(this.state.ui.history, showMain)
     this.setVisible(this.state.ui.settings, showMain)
     this.setVisible(this.state.ui.done, showMain && !isResting && !isComplete)
 
@@ -308,6 +367,17 @@ Page({
     this.setVisible(this.state.ui.settingsMinus, this.state.settingsOpen)
     this.setVisible(this.state.ui.settingsPlus, this.state.settingsOpen)
     this.setVisible(this.state.ui.settingsSave, this.state.settingsOpen)
+
+    this.setVisible(this.state.ui.historyTitle, this.state.historyOpen)
+    this.setVisible(this.state.ui.historyBack, this.state.historyOpen)
+    this.state.ui.historyRows.forEach((row, index) => {
+      const entry = this.state.history[index]
+      const text = entry
+        ? this.formatHistoryEntry(entry)
+        : index === 0 ? 'NO COMPLETED WORKOUTS' : ''
+      row.setProperty(prop.TEXT, text)
+      this.setVisible(row, this.state.historyOpen && text.length > 0)
+    })
   },
 
   onDestroy() {

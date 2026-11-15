@@ -10,6 +10,8 @@ import {
   isValidPersistedWorkoutState,
   restoreWorkoutState,
   createReminderPulsePlan,
+  addWorkoutHistory,
+  restoreWorkoutHistory,
   resetWorkout,
   formatSeconds,
 } from '../shared/workout-state.js'
@@ -125,6 +127,40 @@ test('recovers safely from corrupt persisted workout data', () => {
 
 test('rest reminder is bounded to five one-second pulses', () => {
   assert.deepEqual(createReminderPulsePlan(), [0, 1000, 2000, 3000, 4000])
+})
+
+test('completed workouts are stored newest first and history is capped at twenty', () => {
+  let history = []
+  for (let index = 0; index < 22; index += 1) {
+    history = addWorkoutHistory(history, createWorkoutState({
+      targetSets: 4,
+      restSeconds: 60 + index,
+    }), 1_000 + index)
+  }
+
+  assert.equal(history.length, 20)
+  assert.deepEqual(history[0], {
+    completedAt: 1_021,
+    sets: 4,
+    restSeconds: 81,
+  })
+  assert.equal(history[19].completedAt, 1_002)
+})
+
+test('invalid history entries are discarded, deduplicated, and sorted newest first', () => {
+  assert.deepEqual(restoreWorkoutHistory([
+    { completedAt: 1_000, sets: 4, restSeconds: 60 },
+    { completedAt: 3_000, sets: 4, restSeconds: 75 },
+    { completedAt: 1_000, sets: 4, restSeconds: 60 },
+    { completedAt: 'later', sets: 4, restSeconds: 60 },
+    { completedAt: -1, sets: 4, restSeconds: 60 },
+    { completedAt: 20_000, sets: 4, restSeconds: 60 },
+    { completedAt: 2_000, sets: 4.5, restSeconds: 60 },
+    null,
+  ], 10_000), [
+    { completedAt: 3_000, sets: 4, restSeconds: 75 },
+    { completedAt: 1_000, sets: 4, restSeconds: 60 },
+  ])
 })
 
 test('reset restores defaults', () => {

@@ -74,25 +74,38 @@ export const DONE_BUTTON = {
 }
 
 export const RESET_BUTTON = {
-  x: 34,
+  x: 20,
   y: 372,
-  w: 150,
+  w: 105,
   h: 52,
   text: 'RESET',
-  text_size: 19,
+  text_size: 17,
   color: COLORS.muted,
   normal_color: COLORS.panel,
   press_color: COLORS.panelPressed,
   radius: 18,
 }
 
-export const SETTINGS_BUTTON = {
-  x: 206,
+export const HISTORY_BUTTON = {
+  x: 142,
   y: 372,
-  w: 150,
+  w: 106,
+  h: 52,
+  text: 'HISTORY',
+  text_size: 16,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 18,
+}
+
+export const SETTINGS_BUTTON = {
+  x: 265,
+  y: 372,
+  w: 105,
   h: 52,
   text: 'SETTINGS',
-  text_size: 19,
+  text_size: 16,
   color: COLORS.text,
   normal_color: COLORS.panel,
   press_color: COLORS.panelPressed,
@@ -101,10 +114,10 @@ export const SETTINGS_BUTTON = {
 
 export const SETTINGS_TITLE = {
   x: 24,
-  y: 35,
+  y: 58,
   w: 342,
-  h: 48,
-  text: 'REST SETTINGS',
+  h: 44,
+  text: 'REST TIME',
   color: COLORS.primary,
   text_size: 30,
   ...CENTERED,
@@ -158,4 +171,40 @@ export const SETTINGS_SAVE = {
   normal_color: COLORS.primary,
   press_color: COLORS.primaryPressed,
   radius: 22,
+}
+
+export const HISTORY_TITLE = {
+  x: 24,
+  y: 58,
+  w: 342,
+  h: 46,
+  text: 'HISTORY',
+  color: COLORS.primary,
+  text_size: 30,
+  ...CENTERED,
+}
+
+export const HISTORY_ROW = {
+  x: 28,
+  y: 112,
+  w: 334,
+  h: 46,
+  text: '',
+  color: COLORS.text,
+  text_size: 19,
+  align_h: align.LEFT,
+  align_v: align.CENTER_V,
+}
+
+export const HISTORY_BACK = {
+  x: 50,
+  y: 378,
+  w: 290,
+  h: 54,
+  text: 'BACK',
+  text_size: 22,
+  color: COLORS.background,
+  normal_color: COLORS.primary,
+  press_color: COLORS.primaryPressed,
+  radius: 20,
 }
