@@ -126,7 +126,7 @@ export function restoreWorkoutState(saved, nowMs = Date.now()) {
   }
 }
 
-export function createReminderPulsePlan(seconds = 5) {
+export function createReminderPulsePlan(seconds = 2) {
   const pulseCount = Math.max(1, Math.floor(seconds))
   return Array.from({ length: pulseCount }, (_, index) => index * 1000)
 }
@@ -167,6 +167,15 @@ export function restoreWorkoutHistory(saved, nowMs = Date.now()) {
   return [...latestByTimestamp.values()]
     .sort((a, b) => b.completedAt - a.completedAt)
     .slice(0, 20)
+}
+
+export function normalizeMusicInfo(music) {
+  const source = music && typeof music === 'object' ? music : {}
+  return {
+    title: typeof source.title === 'string' && source.title.trim() ? source.title.trim() : 'NO TRACK',
+    artist: typeof source.artist === 'string' && source.artist.trim() ? source.artist.trim() : 'OPEN MUSIC ON PHONE',
+    isPlaying: source.isPlaying === true,
+  }
 }
 
 export function resetWorkout(state) {

@@ -74,12 +74,12 @@ export const DONE_BUTTON = {
 }
 
 export const RESET_BUTTON = {
-  x: 20,
+  x: 10,
   y: 372,
-  w: 105,
+  w: 82,
   h: 52,
   text: 'RESET',
-  text_size: 17,
+  text_size: 15,
   color: COLORS.muted,
   normal_color: COLORS.panel,
   press_color: COLORS.panelPressed,
@@ -87,9 +87,9 @@ export const RESET_BUTTON = {
 }
 
 export const HISTORY_BUTTON = {
-  x: 142,
+  x: 106,
   y: 372,
-  w: 106,
+  w: 82,
   h: 52,
   text: 'HISTORY',
   text_size: 16,
@@ -99,13 +99,26 @@ export const HISTORY_BUTTON = {
   radius: 18,
 }
 
-export const SETTINGS_BUTTON = {
-  x: 265,
+export const MUSIC_BUTTON = {
+  x: 202,
   y: 372,
-  w: 105,
+  w: 82,
+  h: 52,
+  text: 'MUSIC',
+  text_size: 15,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 18,
+}
+
+export const SETTINGS_BUTTON = {
+  x: 298,
+  y: 372,
+  w: 82,
   h: 52,
   text: 'SETTINGS',
-  text_size: 16,
+  text_size: 14,
   color: COLORS.text,
   normal_color: COLORS.panel,
   press_color: COLORS.panelPressed,
@@ -197,6 +210,104 @@ export const HISTORY_ROW = {
 }
 
 export const HISTORY_BACK = {
+  x: 50,
+  y: 378,
+  w: 290,
+  h: 54,
+  text: 'BACK',
+  text_size: 22,
+  color: COLORS.background,
+  normal_color: COLORS.primary,
+  press_color: COLORS.primaryPressed,
+  radius: 20,
+}
+
+export const MUSIC_TITLE = {
+  x: 24,
+  y: 58,
+  w: 342,
+  h: 44,
+  text: 'MUSIC',
+  color: COLORS.primary,
+  text_size: 30,
+  ...CENTERED,
+}
+
+export const MUSIC_TRACK = {
+  x: 24,
+  y: 112,
+  w: 342,
+  h: 66,
+  text: 'NO TRACK',
+  color: COLORS.text,
+  text_size: 25,
+  text_style: text_style.WRAP,
+  ...CENTERED,
+}
+
+export const MUSIC_ARTIST = {
+  x: 24,
+  y: 180,
+  w: 342,
+  h: 44,
+  text: 'OPEN MUSIC ON PHONE',
+  color: COLORS.muted,
+  text_size: 18,
+  text_style: text_style.WRAP,
+  ...CENTERED,
+}
+
+export const MUSIC_PREV = {
+  x: 14,
+  y: 248,
+  w: 104,
+  h: 64,
+  text: 'PREV',
+  text_size: 20,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 20,
+}
+
+export const MUSIC_PLAY = {
+  x: 130,
+  y: 248,
+  w: 130,
+  h: 64,
+  text: 'PLAY/PAUSE',
+  text_size: 18,
+  color: COLORS.background,
+  normal_color: COLORS.primary,
+  press_color: COLORS.primaryPressed,
+  radius: 20,
+}
+
+export const MUSIC_NEXT = {
+  x: 272,
+  y: 248,
+  w: 104,
+  h: 64,
+  text: 'NEXT',
+  text_size: 20,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 20,
+}
+
+export const MUSIC_STATUS = {
+  x: 24,
+  y: 318,
+  w: 342,
+  h: 38,
+  text: 'CONNECTING...',
+  color: COLORS.muted,
+  text_size: 17,
+  ...CENTERED,
+}
+
+export const MUSIC_BACK = {
   x: 50,
   y: 378,
   w: 290,

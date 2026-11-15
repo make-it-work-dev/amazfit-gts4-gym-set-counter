@@ -12,6 +12,7 @@ import {
   createReminderPulsePlan,
   addWorkoutHistory,
   restoreWorkoutHistory,
+  normalizeMusicInfo,
   resetWorkout,
   formatSeconds,
 } from '../shared/workout-state.js'
@@ -125,8 +126,8 @@ test('recovers safely from corrupt persisted workout data', () => {
   )
 })
 
-test('rest reminder is bounded to five one-second pulses', () => {
-  assert.deepEqual(createReminderPulsePlan(), [0, 1000, 2000, 3000, 4000])
+test('rest reminder is bounded to two one-second pulses', () => {
+  assert.deepEqual(createReminderPulsePlan(), [0, 1000])
 })
 
 test('completed workouts are stored newest first and history is capped at twenty', () => {
@@ -161,6 +162,23 @@ test('invalid history entries are discarded, deduplicated, and sorted newest fir
     { completedAt: 3_000, sets: 4, restSeconds: 75 },
     { completedAt: 1_000, sets: 4, restSeconds: 60 },
   ])
+})
+
+test('music metadata is normalized for the watch display', () => {
+  assert.deepEqual(normalizeMusicInfo({
+    title: 'Song',
+    artist: 'Artist',
+    isPlaying: true,
+  }), {
+    title: 'Song',
+    artist: 'Artist',
+    isPlaying: true,
+  })
+  assert.deepEqual(normalizeMusicInfo({}), {
+    title: 'NO TRACK',
+    artist: 'OPEN MUSIC ON PHONE',
+    isPlaying: false,
+  })
 })
 
 test('reset restores defaults', () => {
