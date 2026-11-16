@@ -7,6 +7,7 @@ import {
   syncRest,
   adjustRest,
   setDefaultRest,
+  setTargetSets,
   isValidPersistedWorkoutState,
   restoreWorkoutState,
   restorePendingCompletionAt,
@@ -21,6 +22,12 @@ import {
   resetWorkout,
   formatSeconds,
 } from '../shared/workout-state.js'
+import {
+  createLicenseState,
+  applyLicenseStatus,
+  canUseApp,
+  shouldRequestLicenseSync,
+} from '../shared/license-state.js'
 
 test('starts ready for set one with a sixty second default rest', () => {
   assert.deepEqual(createWorkoutState(), {
@@ -87,6 +94,19 @@ test('settings change future rest duration between fifteen seconds and ten minut
   assert.equal(setDefaultRest(createWorkoutState(), 90).restSeconds, 90)
   assert.equal(setDefaultRest(createWorkoutState(), 0).restSeconds, 15)
   assert.equal(setDefaultRest(createWorkoutState(), 999).restSeconds, 600)
+})
+
+test('settings change the target between one and twenty without dropping completed sets', () => {
+  assert.equal(setTargetSets(createWorkoutState(), 6).targetSets, 6)
+  assert.equal(setTargetSets(createWorkoutState(), 0).targetSets, 1)
+  assert.equal(setTargetSets(createWorkoutState(), 99).targetSets, 20)
+
+  const inProgress = {
+    ...createWorkoutState({ targetSets: 6 }),
+    completedSets: 3,
+    phase: 'ready',
+  }
+  assert.equal(setTargetSets(inProgress, 2).targetSets, 4)
 })
 
 test('rejects corrupt persisted rest metadata before it can trigger an alert', () => {
@@ -252,6 +272,50 @@ test('system music controls launch as a native app', () => {
     appId: 1234,
     native: true,
   })
+})
+
+test('an upfront license blocks app use until KiezelPay reports licensed', () => {
+  const checking = createLicenseState()
+  assert.deepEqual(checking, {
+    status: 'checking',
+    paymentCode: null,
+  })
+  assert.equal(canUseApp(checking), false)
+
+  const paymentRequired = applyLicenseStatus(checking, {
+    status: 'unlicensed',
+    paymentCode: '123456',
+  })
+  assert.deepEqual(paymentRequired, {
+    status: 'unlicensed',
+    paymentCode: '123456',
+  })
+  assert.equal(canUseApp(paymentRequired), false)
+
+  const licensed = applyLicenseStatus(paymentRequired, {
+    status: 'licensed',
+    paymentCode: 'should-not-persist',
+  })
+  assert.deepEqual(licensed, {
+    status: 'licensed',
+    paymentCode: null,
+  })
+  assert.equal(canUseApp(licensed), true)
+})
+
+test('invalid KiezelPay status fails closed', () => {
+  assert.deepEqual(applyLicenseStatus(createLicenseState(), null), createLicenseState())
+  assert.deepEqual(
+    applyLicenseStatus(createLicenseState(), { status: 'unexpected', paymentCode: 123 }),
+    createLicenseState(),
+  )
+})
+
+test('license sync retries only until the Side Service responds', () => {
+  assert.equal(shouldRequestLicenseSync(false, null, 1_000), true)
+  assert.equal(shouldRequestLicenseSync(false, 1_000, 30_999), false)
+  assert.equal(shouldRequestLicenseSync(false, 1_000, 31_000), true)
+  assert.equal(shouldRequestLicenseSync(true, 1_000, 60_000), false)
 })
 
 test('reset restores defaults', () => {

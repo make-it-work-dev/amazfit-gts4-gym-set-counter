@@ -27,6 +27,7 @@ import {
   completeSet,
   syncRest,
   setDefaultRest,
+  setTargetSets,
   isValidPersistedWorkoutState,
   restoreWorkoutState,
   restorePendingCompletionAt,
@@ -42,8 +43,16 @@ import {
   formatSeconds,
 } from '../../../shared/workout-state'
 import {
+  createLicenseState,
+  applyLicenseStatus,
+  canUseApp,
+  shouldRequestLicenseSync,
+} from '../../../shared/license-state'
+import {
   COLORS,
   TITLE,
+  LICENSE_TITLE,
+  LICENSE_MESSAGE,
   SETS,
   STATUS,
   TIMER,
@@ -52,7 +61,9 @@ import {
   HISTORY_BUTTON,
   MUSIC_BUTTON,
   SETTINGS_BUTTON,
-  SETTINGS_TITLE,
+  SETTINGS_SETS_VALUE,
+  SETTINGS_SETS_MINUS,
+  SETTINGS_SETS_PLUS,
   SETTINGS_VALUE,
   SETTINGS_MINUS,
   SETTINGS_PLUS,
@@ -93,6 +104,8 @@ const vibrator = new Vibrator()
 Page({
   state: {
     workout: createWorkoutState(),
+    license: createLicenseState(),
+    lastPurchaseRequestAt: null,
     intervalId: null,
     reminderIntervalId: null,
     reminderStopTimeoutId: null,
@@ -112,6 +125,16 @@ Page({
   onInit() {
     setWakeUpRelaunch({ relaunch: true })
     this.clearPendingAlarm()
+
+    const app = getApp()
+    const kpay = app.globalData && app.globalData.kpay
+    if (kpay && kpay.isLicensed()) {
+      this.state.license = applyLicenseStatus(this.state.license, { status: 'licensed' })
+    }
+    if (kpay) {
+      kpay.startPurchase()
+      this.state.lastPurchaseRequestAt = Date.now()
+    }
 
     const snapshot = localStorage.getItem(SNAPSHOT_KEY, null)
     const hasSnapshot = snapshot && typeof snapshot === 'object'
@@ -153,6 +176,8 @@ Page({
     })
 
     this.state.ui.title = createWidget(widget.TEXT, TITLE)
+    this.state.ui.licenseTitle = createWidget(widget.TEXT, LICENSE_TITLE)
+    this.state.ui.licenseMessage = createWidget(widget.TEXT, LICENSE_MESSAGE)
     this.state.ui.sets = createWidget(widget.TEXT, SETS)
     this.state.ui.status = createWidget(widget.TEXT, STATUS)
     this.state.ui.timer = createWidget(widget.TEXT, TIMER)
@@ -177,7 +202,15 @@ Page({
       click_func: () => this.openSettings(),
     })
 
-    this.state.ui.settingsTitle = createWidget(widget.TEXT, SETTINGS_TITLE)
+    this.state.ui.settingsSetsValue = createWidget(widget.TEXT, SETTINGS_SETS_VALUE)
+    this.state.ui.settingsSetsMinus = createWidget(widget.BUTTON, {
+      ...SETTINGS_SETS_MINUS,
+      click_func: () => this.changeTargetSets(-1),
+    })
+    this.state.ui.settingsSetsPlus = createWidget(widget.BUTTON, {
+      ...SETTINGS_SETS_PLUS,
+      click_func: () => this.changeTargetSets(1),
+    })
     this.state.ui.settingsValue = createWidget(widget.TEXT, SETTINGS_VALUE)
     this.state.ui.settingsMinus = createWidget(widget.BUTTON, {
       ...SETTINGS_MINUS,
@@ -291,7 +324,45 @@ Page({
     this.state.intervalId = setInterval(() => this.onSecond(), 1000)
   },
 
+  syncLicense() {
+    const app = getApp()
+    const kpay = app.globalData && app.globalData.kpay
+    const update = kpay && kpay.isLicensed()
+      ? { status: 'licensed' }
+      : app.globalData && app.globalData.kpayStatus
+    const next = update
+      ? applyLicenseStatus(this.state.license, update)
+      : this.state.license
+    const changed = next.status !== this.state.license.status ||
+      next.paymentCode !== this.state.license.paymentCode
+    this.state.license = next
+
+    if (!canUseApp(next)) {
+      this.state.settingsOpen = false
+      this.state.historyOpen = false
+      this.state.historyEditOpen = false
+      this.state.datePickerOpen = false
+      if (this.state.pendingHistoryMode !== 'completion') {
+        this.state.bodyPartOpen = false
+      }
+    }
+
+    const now = Date.now()
+    const hasReceivedStatus = Boolean(app.globalData && app.globalData.kpayStatus)
+    if (kpay && shouldRequestLicenseSync(hasReceivedStatus, this.state.lastPurchaseRequestAt, now)) {
+      kpay.startPurchase()
+      this.state.lastPurchaseRequestAt = now
+    }
+    return changed
+  },
+
   onSecond() {
+    const licenseChanged = this.syncLicense()
+    if (!canUseApp(this.state.license)) {
+      if (licenseChanged) this.render()
+      return
+    }
+
     const previous = this.state.workout
     const next = syncRest(previous, Date.now())
     if (
@@ -475,6 +546,15 @@ Page({
     return `${month}/${day}/${date.getFullYear()}`
   },
 
+  changeTargetSets(delta) {
+    this.state.workout = setTargetSets(
+      this.state.workout,
+      this.state.workout.targetSets + delta,
+    )
+    this.saveWorkout()
+    this.render()
+  },
+
   changeDefaultRest(seconds) {
     this.state.workout = setDefaultRest(
       this.state.workout,
@@ -588,9 +668,10 @@ Page({
 
   render() {
     const state = this.state.workout
+    const licensed = canUseApp(this.state.license)
     const isResting = state.phase === 'rest'
     const isComplete = state.phase === 'complete'
-    const showMain = !this.state.settingsOpen &&
+    const showMain = licensed && !this.state.settingsOpen &&
       !this.state.historyOpen &&
       !this.state.historyEditOpen &&
       !this.state.datePickerOpen &&
@@ -606,7 +687,19 @@ Page({
       prop.TEXT,
       isResting ? 'REST' : isComplete ? 'WORKOUT COMPLETE' : `READY FOR SET ${nextSet}`,
     )
-    this.state.ui.settingsValue.setProperty(prop.TEXT, formatSeconds(state.restSeconds))
+    this.state.ui.settingsSetsValue.setProperty(prop.TEXT, `SETS ${state.targetSets}`)
+    this.state.ui.settingsValue.setProperty(prop.TEXT, `REST ${formatSeconds(state.restSeconds)}`)
+
+    const licenseTitle = this.state.license.status === 'unlicensed'
+      ? 'PAYMENT REQUIRED'
+      : 'VERIFYING LICENSE'
+    const licenseMessage = this.state.license.status === 'unlicensed'
+      ? 'COMPLETE THE $2.99 PURCHASE ON YOUR PHONE'
+      : 'KEEP YOUR PHONE NEARBY AND OPEN THE ZEPP APP'
+    this.state.ui.licenseTitle.setProperty(prop.TEXT, licenseTitle)
+    this.state.ui.licenseMessage.setProperty(prop.TEXT, licenseMessage)
+    this.setVisible(this.state.ui.licenseTitle, !licensed)
+    this.setVisible(this.state.ui.licenseMessage, !licensed)
 
     this.setVisible(this.state.ui.title, showMain)
     this.setVisible(this.state.ui.sets, showMain)
@@ -618,7 +711,9 @@ Page({
     this.setVisible(this.state.ui.settings, showMain)
     this.setVisible(this.state.ui.done, showMain && !isResting && !isComplete)
 
-    this.setVisible(this.state.ui.settingsTitle, this.state.settingsOpen)
+    this.setVisible(this.state.ui.settingsSetsValue, this.state.settingsOpen)
+    this.setVisible(this.state.ui.settingsSetsMinus, this.state.settingsOpen)
+    this.setVisible(this.state.ui.settingsSetsPlus, this.state.settingsOpen)
     this.setVisible(this.state.ui.settingsValue, this.state.settingsOpen)
     this.setVisible(this.state.ui.settingsMinus, this.state.settingsOpen)
     this.setVisible(this.state.ui.settingsPlus, this.state.settingsOpen)
@@ -694,13 +789,13 @@ Page({
       prop.TEXT,
       this.state.pendingHistoryMode === 'completion' ? 'WHAT DID YOU TRAIN?' : 'BODY PART',
     )
-    this.setVisible(this.state.ui.bodyPartTitle, this.state.bodyPartOpen)
+    this.setVisible(this.state.ui.bodyPartTitle, licensed && this.state.bodyPartOpen)
     this.state.ui.bodyPartButtons.forEach((button) => {
-      this.setVisible(button, this.state.bodyPartOpen)
+      this.setVisible(button, licensed && this.state.bodyPartOpen)
     })
     this.setVisible(
       this.state.ui.bodyPartBack,
-      this.state.bodyPartOpen && this.state.pendingHistoryMode === 'manual',
+      licensed && this.state.bodyPartOpen && this.state.pendingHistoryMode === 'manual',
     )
   },
 

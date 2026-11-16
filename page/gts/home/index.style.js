@@ -26,6 +26,29 @@ export const TITLE = {
   ...CENTERED,
 }
 
+export const LICENSE_TITLE = {
+  x: 24,
+  y: 120,
+  w: 342,
+  h: 54,
+  text: 'VERIFYING LICENSE',
+  color: COLORS.primary,
+  text_size: 28,
+  ...CENTERED,
+}
+
+export const LICENSE_MESSAGE = {
+  x: 40,
+  y: 190,
+  w: 310,
+  h: 110,
+  text: 'KEEP YOUR PHONE NEARBY',
+  color: COLORS.text,
+  text_size: 22,
+  text_style: text_style.WRAP,
+  ...CENTERED,
+}
+
 export const SETS = {
   x: 20,
   y: 54,
@@ -125,59 +148,71 @@ export const SETTINGS_BUTTON = {
   radius: 18,
 }
 
-export const SETTINGS_TITLE = {
+export const SETTINGS_SETS_VALUE = {
   x: 24,
-  y: 58,
+  y: 54,
   w: 342,
-  h: 44,
-  text: 'REST TIME',
-  color: COLORS.primary,
-  text_size: 30,
+  h: 50,
+  text: 'SETS 4',
+  color: COLORS.text,
+  text_size: 36,
   ...CENTERED,
+}
+
+export const SETTINGS_SETS_MINUS = {
+  x: 40,
+  y: 112,
+  w: 140,
+  h: 52,
+  text: '-1 SET',
+  text_size: 21,
+  color: COLORS.text,
+  normal_color: COLORS.panel,
+  press_color: COLORS.panelPressed,
+  radius: 18,
+}
+
+export const SETTINGS_SETS_PLUS = {
+  ...SETTINGS_SETS_MINUS,
+  x: 210,
+  text: '+1 SET',
 }
 
 export const SETTINGS_VALUE = {
   x: 24,
-  y: 112,
+  y: 192,
   w: 342,
-  h: 82,
-  text: '01:00',
+  h: 50,
+  text: 'REST 01:00',
   color: COLORS.text,
-  text_size: 62,
+  text_size: 34,
   ...CENTERED,
 }
 
 export const SETTINGS_MINUS = {
   x: 40,
-  y: 225,
+  y: 252,
   w: 140,
-  h: 62,
+  h: 52,
   text: '-15 SEC',
-  text_size: 22,
+  text_size: 21,
   color: COLORS.text,
   normal_color: COLORS.panel,
   press_color: COLORS.panelPressed,
-  radius: 20,
+  radius: 18,
 }
 
 export const SETTINGS_PLUS = {
+  ...SETTINGS_MINUS,
   x: 210,
-  y: 225,
-  w: 140,
-  h: 62,
   text: '+15 SEC',
-  text_size: 22,
-  color: COLORS.text,
-  normal_color: COLORS.panel,
-  press_color: COLORS.panelPressed,
-  radius: 20,
 }
 
 export const SETTINGS_SAVE = {
   x: 50,
-  y: 350,
+  y: 352,
   w: 290,
-  h: 68,
+  h: 66,
   text: 'DONE',
   text_size: 27,
   color: COLORS.background,
