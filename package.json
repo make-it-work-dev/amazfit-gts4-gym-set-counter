@@ -1,6 +1,6 @@
 {
   "name": "amazfit-gts4-gym-set-counter",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "@zeppos/zeus-cli": "1.10.0"
+  },
+  "dependencies": {
+    "kpay-amazfit": "2.0.4"
   }
 }

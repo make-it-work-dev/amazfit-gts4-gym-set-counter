@@ -92,6 +92,14 @@ export function setDefaultRest(state, seconds) {
   }
 }
 
+export function setTargetSets(state, targetSets) {
+  const minimum = Math.max(1, state.completedSets + (state.phase === 'complete' ? 0 : 1))
+  return {
+    ...state,
+    targetSets: Math.min(20, Math.max(minimum, Math.round(targetSets))),
+  }
+}
+
 export function isValidPersistedWorkoutState(saved) {
   if (!saved || typeof saved !== 'object') return false
 
